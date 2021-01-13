@@ -47,7 +47,13 @@ ventoy_os_install_dmsetup() {
         if [ $LINTCNT -gt 1 ]; then
             vtlog "more than one pkgs, need to filter..."
             VER=$($BUSYBOX_PATH/uname -r)
+            
             LINE=$($GREP ' md-modules.*\.udeb'  $VTOY_PATH/iso_file_list | $GREP $VER)
+            LINTCNT=$($GREP ' md-modules.*\.udeb'  $VTOY_PATH/iso_file_list | $GREP -c $VER)
+            if [ $LINTCNT -gt 1 ]; then
+                vtlog "Still more than one pkgs, use the first one..."
+                LINE=$($GREP ' md-modules.*\.udeb'  $VTOY_PATH/iso_file_list | $GREP  -m1 $VER)
+            fi
         fi
         install_udeb_from_line "$LINE" ${vt_usb_disk} 
     fi
@@ -127,15 +133,7 @@ else
         vtlog "boot=, or casper, don't mount"
     else
         vtlog "No boot param, need to mount"
-        $BUSYBOX_PATH/mkdir /cdrom
-        
-        if [ -b $VTOY_DM_PATH ]; then
-            vtlog "mount $VTOY_DM_PATH ..."
-            $BUSYBOX_PATH/mount -t iso9660 $VTOY_DM_PATH  /cdrom
-        else
-            vtlog "mount /dev/$1 ..."
-            $BUSYBOX_PATH/mount -t iso9660 /dev/$1  /cdrom
-        fi
+        echo /dev/$1 > /ventoy/list-devices-usb-part
     fi
 fi
 

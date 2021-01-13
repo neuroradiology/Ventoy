@@ -36,15 +36,32 @@ export SED=$BUSYBOX_PATH/sed
 export SLEEP=$BUSYBOX_PATH/sleep
 export HEAD=$BUSYBOX_PATH/head
 
-if [ -e $BUSYBOX_PATH/64h ]; then
+if [ -e $BUSYBOX_PATH/32h ]; then
+    if [ -e $BUSYBOX_PATH/64h ]; then
+        #this is arm64
+        $BUSYBOX_PATH/xzminidecaa64 < $BUSYBOX_PATH/busyboxaa64.xz > $BUSYBOX_PATH/busybox
+        $BUSYBOX_PATH/vtchmodaa64 $BUSYBOX_PATH/busybox
+    else
+        #this is x86_64
+        $BUSYBOX_PATH/xzminidec64 < $BUSYBOX_PATH/busybox64.xz > $BUSYBOX_PATH/busybox
+        if [ -s $BUSYBOX_PATH/busybox ]; then
+            $BUSYBOX_PATH/vtchmod64 $BUSYBOX_PATH/busybox
+        else
+            $BUSYBOX_PATH/xzminidec64_musl < $BUSYBOX_PATH/busybox64.xz > $BUSYBOX_PATH/busybox 
+            $BUSYBOX_PATH/vtchmod64_musl $BUSYBOX_PATH/busybox
+        fi
+    fi
+else
     $BUSYBOX_PATH/xzminidec32 < $BUSYBOX_PATH/busybox32.xz > $BUSYBOX_PATH/busybox
     $BUSYBOX_PATH/vtchmod32 $BUSYBOX_PATH/busybox
-else
-    $BUSYBOX_PATH/xzminidec64 < $BUSYBOX_PATH/busybox64.xz > $BUSYBOX_PATH/busybox 
-    $BUSYBOX_PATH/vtchmod64 $BUSYBOX_PATH/busybox
 fi
 
-$BUSYBOX_PATH/busybox --install $BUSYBOX_PATH
+if [ -e $BUSYBOX_PATH/busybox ]; then
+    $BUSYBOX_PATH/busybox --install $BUSYBOX_PATH
+else
+    $BUSYBOX_PATH/tmpxz -d $BUSYBOX_PATH/busybox32.xz
+    $BUSYBOX_PATH/busybox32 --install $BUSYBOX_PATH
+fi
 
 export PATH=$BUSYBOX_PATH/:$VTOY_PATH/tool
 
@@ -74,14 +91,35 @@ else
     xz -d -c loop.cpio.xz | cpio -idm 2>>$VTLOG
 fi
 
-if [ -e $BUSYBOX_PATH/64h ]; then
-    echo "Use busybox32 toolkit ..." >>$VTLOG
+if [ -e $BUSYBOX_PATH/32h ]; then
+    if [ -e $BUSYBOX_PATH/64h ]; then
+        echo "Use ARM64 busybox toolkit ..." >>$VTLOG
+        echo aarch64 > $VTOY_PATH/ventoy_arch
+        ln -s $BUSYBOX_PATH/xzminidecaa64 $BUSYBOX_PATH/xzminidec
+        ln -s $VTOY_PATH/tool/dmsetupaa64 $VTOY_PATH/tool/dmsetup
+        ln -s $VTOY_PATH/tool/lunzipaa64 $VTOY_PATH/tool/lunzip
+        
+        rm -f $VTOY_PATH/tool/lz4cat $VTOY_PATH/tool/zstdcat
+        ln -s $VTOY_PATH/tool/lz4cataa64 $VTOY_PATH/tool/lz4cat
+        ln -s $VTOY_PATH/tool/zstdcataa64 $VTOY_PATH/tool/zstdcat
+        
+    else
+        echo "Use x86_64 busybox toolkit ..." >>$VTLOG
+        echo x86_64 > $VTOY_PATH/ventoy_arch
+        ln -s $BUSYBOX_PATH/xzminidec64 $BUSYBOX_PATH/xzminidec
+        ln -s $VTOY_PATH/tool/dmsetup64 $VTOY_PATH/tool/dmsetup
+        ln -s $VTOY_PATH/tool/lunzip64 $VTOY_PATH/tool/lunzip
+        
+        rm -f $VTOY_PATH/tool/lz4cat $VTOY_PATH/tool/zstdcat
+        ln -s $VTOY_PATH/tool/lz4cat64 $VTOY_PATH/tool/lz4cat
+        ln -s $VTOY_PATH/tool/zstdcat64 $VTOY_PATH/tool/zstdcat
+    fi
+else
+    echo "Use i386 busybox toolkit ..." >>$VTLOG
+    echo i386 > $VTOY_PATH/ventoy_arch
     ln -s $BUSYBOX_PATH/xzminidec32 $BUSYBOX_PATH/xzminidec
     ln -s $VTOY_PATH/tool/dmsetup32 $VTOY_PATH/tool/dmsetup
-else
-    echo "Use busybox64 toolkit ..." >>$VTLOG
-    ln -s $BUSYBOX_PATH/xzminidec64 $BUSYBOX_PATH/xzminidec
-    ln -s $VTOY_PATH/tool/dmsetup64 $VTOY_PATH/tool/dmsetup
+    ln -s $VTOY_PATH/tool/lunzip32 $VTOY_PATH/tool/lunzip
 fi
 
 rm -f *.xz

@@ -21,7 +21,7 @@
 #ifndef __VENTOY_H__
 #define __VENTOY_H__
 
-#define COMPILE_ASSERT(expr)  extern char __compile_assert[(expr) ? 1 : -1]
+#define COMPILE_ASSERT(a, expr)  extern char __compile_assert##a[(expr) ? 1 : -1]
 
 #define VENTOY_COMPATIBLE_STR      "VENTOY COMPATIBLE"
 #define VENTOY_COMPATIBLE_STR_LEN  17
@@ -71,7 +71,7 @@ typedef struct ventoy_image_location
 {
     ventoy_guid  guid;
 
-    /* image sector size, currently this value is always 2048 */
+    /* image sector size, 2048/512 */
     grub_uint32_t   image_sector_size;
 
     /* disk sector size, normally the value is 512 */
@@ -125,7 +125,9 @@ typedef struct ventoy_os_param
      */
     grub_uint8_t   vtoy_reserved[32];    // Internal use by ventoy
 
-    grub_uint8_t   reserved[31];
+    grub_uint8_t   vtoy_disk_signature[4];
+
+    grub_uint8_t   reserved[27];
 }ventoy_os_param;
 
 
@@ -137,11 +139,21 @@ typedef struct ventoy_windows_data
 }ventoy_windows_data;
 
 
+typedef struct ventoy_secure_data
+{
+    grub_uint8_t magic1[16];     /* VENTOY_GUID */
+    grub_uint8_t diskuuid[16];   
+    grub_uint8_t Checksum[16];    
+    grub_uint8_t adminSHA256[32];
+    grub_uint8_t reserved[4000];
+    grub_uint8_t magic2[16];     /* VENTOY_GUID */
+}ventoy_secure_data;
 
 #pragma pack()
 
 // compile assert check : sizeof(ventoy_os_param) must be 512
-COMPILE_ASSERT(sizeof(ventoy_os_param) == 512);
+COMPILE_ASSERT(1,sizeof(ventoy_os_param) == 512);
+COMPILE_ASSERT(2,sizeof(ventoy_secure_data) == 4096);
 
 
 
@@ -173,6 +185,18 @@ typedef struct ventoy_chain_head
     grub_uint32_t virt_chunk_offset;
     grub_uint32_t virt_chunk_num;
 }ventoy_chain_head;
+
+typedef struct ventoy_image_desc
+{
+    grub_uint64_t disk_size;
+    grub_uint64_t part1_size;
+    grub_uint8_t  disk_uuid[16];
+    grub_uint8_t  disk_signature[4];
+    grub_uint32_t img_chunk_count;
+    /* ventoy_img_chunk list */
+}ventoy_image_desc;
+
+
 
 typedef struct ventoy_img_chunk
 {
@@ -219,6 +243,7 @@ typedef struct ventoy_img_chunk_list
 #define GRUB_FILE_REPLACE_MAGIC  0x1258BEEF
 
 typedef const char * (*grub_env_get_pf)(const char *name);
+typedef int (*grub_env_set_pf)(const char *name, const char *val);
 typedef int (*grub_env_printf_pf)(const char *fmt, ...);
 
 typedef struct ventoy_grub_param_file_replace
@@ -232,12 +257,12 @@ typedef struct ventoy_grub_param_file_replace
 typedef struct ventoy_grub_param
 {
     grub_env_get_pf grub_env_get;
+    grub_env_set_pf grub_env_set;
     ventoy_grub_param_file_replace file_replace;
     grub_env_printf_pf grub_env_printf;
 }ventoy_grub_param;
 
 #pragma pack()
-
 
 int grub_ext_get_file_chunk(grub_uint64_t part_start, grub_file_t file, ventoy_img_chunk_list *chunk_list);
 int grub_fat_get_file_chunk(grub_uint64_t part_start, grub_file_t file, ventoy_img_chunk_list *chunk_list);
